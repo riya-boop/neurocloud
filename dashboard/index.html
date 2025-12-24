@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroCloud - Self-Healing Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 0.9em;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-badge.healthy {
+            background: rgba(46, 213, 115, 0.3);
+        }
+        
+        .status-badge.warning {
+            background: rgba(255, 193, 7, 0.3);
+        }
+        
+        .status-badge.critical {
+            background: rgba(255, 71, 87, 0.3);
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .card h2 {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+        
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #f39c12, #e67e22);
+        }
+        
+        .progress-fill.critical {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+        }
+        
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            font-size: 0.9em;
+            border-left: 3px solid;
+        }
+        
+        .log-entry.info {
+            border-left-color: #3498db;
+        }
+        
+        .log-entry.warning {
+            border-left-color: #f39c12;
+        }
+        
+        .log-entry.error {
+            border-left-color: #e74c3c;
+        }
+        
+        .log-entry.success {
+            border-left-color: #2ecc71;
+        }
+        
+        .timestamp {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+        
+        button {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .pulsing {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 NeuroCloud</h1>
+            <div class="status-badge healthy" id="systemStatus">System Healthy</div>
+        </header>
+        
+        <div class="controls">
+            <button onclick="toggleMonitoring()">⏸️ Pause Monitoring</button>
+            <button onclick="injectAnomaly()">⚠️ Inject Test Anomaly</button>
+            <button onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>💻 CPU Usage</h2>
+                <div class="metric">
+                    <span class="metric-label">Current</span>
+                    <span class="metric-value" id="cpuValue">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cpuProgress" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>🧠 Memory Usage</h2>
+                <div class="metric">
+                    <span class="metric-label">Current</span>
+                    <span class="metric-value" id="memoryValue">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="memoryProgress" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>💾 Disk Usage</h2>
+                <div class="metric">
+                    <span class="metric-label">Current</span>
+                    <span class="metric-value" id="diskValue">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="diskProgress" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>⚡ Response Time</h2>
+                <div class="metric">
+                    <span class="metric-label">Current</span>
+                    <span class="metric-value" id="responseValue">0ms</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>🌐 Network</h2>
+                <div class="metric">
+                    <span class="metric-label">Throughput</span>
+                    <span class="metric-value" id="networkValue">0 Mbps</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📊 Statistics</h2>
+                <div style="font-size: 0.9em;">
+                    <div style="margin: 10px 0;">
+                        <strong>Connections:</strong> <span id="connections">0</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <strong>Error Rate:</strong> <span id="errorRate">0%</span>
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <strong>Uptime:</strong> <span id="uptime">0h 0m</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>📝 System Logs & Healing Actions</h2>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry info">
+                    <div class="timestamp">System initialized</div>
+                    <div>NeuroCloud monitoring system started successfully</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let monitoring = true;
+        let startTime = Date.now();
+        
+        // Simulated data (in real app, this would fetch from backend)
+        function generateMetrics() {
+            const baseTime = Date.now() - startTime;
+            return {
+                cpu: 40 + Math.random() * 20 + Math.sin(baseTime / 10000) * 15,
+                memory: 50 + Math.random() * 15 + (baseTime / 100000),
+                disk: 60 + Math.random() * 5,
+                network: 50 + Math.sin(baseTime / 5000) * 30 + Math.random() * 20,
+                responseTime: 200 + Math.random() * 100,
+                connections: Math.floor(80 + Math.random() * 60),
+                errorRate: Math.random() * 2
+            };
+        }
+        
+        function updateMetric(id, value, suffix = '%', threshold = 80, criticalThreshold = 90) {
+            const element = document.getElementById(id + 'Value');
+            const progress = document.getElementById(id + 'Progress');
+            
+            if (element) {
+                element.textContent = Math.round(value) + suffix;
+            }
+            
+            if (progress) {
+                progress.style.width = Math.min(value, 100) + '%';
+                
+                if (value > criticalThreshold) {
+                    progress.className = 'progress-fill critical';
+                } else if (value > threshold) {
+                    progress.className = 'progress-fill warning';
+                } else {
+                    progress.className = 'progress-fill';
+                }
+            }
+        }
+        
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `
+                <div class="timestamp">${timestamp}</div>
+                <div>${message}</div>
+            `;
+            
+            container.insertBefore(entry, container.firstChild);
+            
+            // Keep only last 20 logs
+            while (container.children.length > 20) {
+                container.removeChild(container.lastChild);
+            }
+        }
+        
+        function updateSystemStatus(metrics) {
+            const statusBadge = document.getElementById('systemStatus');
+            
+            if (metrics.cpu > 90 || metrics.memory > 85 || metrics.responseTime > 1000) {
+                statusBadge.className = 'status-badge critical pulsing';
+                statusBadge.textContent = '⚠️ Critical Issues';
+            } else if (metrics.cpu > 70 || metrics.memory > 70) {
+                statusBadge.className = 'status-badge warning';
+                statusBadge.textContent = '⚠️ Warnings';
+            } else {
+                statusBadge.className = 'status-badge healthy';
+                statusBadge.textContent = '✅ System Healthy';
+            }
+        }
+        
+        function updateUptime() {
+            const elapsed = Date.now() - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            document.getElementById('uptime').textContent = `${hours}h ${minutes}m`;
+        }
+        
+        function updateDashboard() {
+            if (!monitoring) return;
+            
+            const metrics = generateMetrics();
+            
+            updateMetric('cpu', metrics.cpu);
+            updateMetric('memory', metrics.memory);
+            updateMetric('disk', metrics.disk);
+            updateMetric('response', metrics.responseTime, 'ms', 500, 1000);
+            
+            document.getElementById('networkValue').textContent = Math.round(metrics.network) + ' Mbps';
+            document.getElementById('connections').textContent = metrics.connections;
+            document.getElementById('errorRate').textContent = metrics.errorRate.toFixed(2) + '%';
+            
+            updateUptime();
+            updateSystemStatus(metrics);
+            
+            // Simulate anomaly detection
+            if (metrics.cpu > 85) {
+                addLog(`High CPU detected (${Math.round(metrics.cpu)}%) - Initiating optimization`, 'warning');
+                setTimeout(() => {
+                    addLog('CPU optimization complete - Reduced background processes', 'success');
+                }, 2000);
+            }
+            
+            if (metrics.memory > 80) {
+                addLog(`High memory usage (${Math.round(metrics.memory)}%) - Clearing caches`, 'warning');
+                setTimeout(() => {
+                    addLog('Memory cleanup complete - Freed 15% memory', 'success');
+                }, 2000);
+            }
+        }
+        
+        function toggleMonitoring() {
+            monitoring = !monitoring;
+            const btn = event.target;
+            btn.textContent = monitoring ? '⏸️ Pause Monitoring' : '▶️ Resume Monitoring';
+            
+            if (monitoring) {
+                addLog('Monitoring resumed', 'info');
+            } else {
+                addLog('Monitoring paused', 'info');
+            }
+        }
+        
+        function injectAnomaly() {
+            addLog('Test anomaly injected - Simulating high CPU load', 'error');
+            setTimeout(() => {
+                addLog('Anomaly detected by AI model', 'warning');
+            }, 1000);
+            setTimeout(() => {
+                addLog('Self-healing initiated - Optimizing resources', 'info');
+            }, 2000);
+            setTimeout(() => {
+                addLog('System recovered - All metrics normalized', 'success');
+            }, 3000);
+        }
+        
+        function clearLogs() {
+            const container = document.getElementById('logContainer');
+            container.innerHTML = '<div class="log-entry info"><div class="timestamp">Just now</div><div>Logs cleared</div></div>';
+        }
+        
+        // Update dashboard every 2 seconds
+        setInterval(updateDashboard, 2000);
+        updateDashboard();
+    </script>
+</body>
+</html>
